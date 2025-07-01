@@ -1,0 +1,63 @@
+# Node.js and build artifacts
+node_modules
+dist
+build
+.tmp
+.temp
+gen
+coverage
+ 
+ 
+# TypeScript
+*.tsbuildinfo
+ 
+# Logs
+*.log
+npm-debug.log*
+ 
+# OS-specific
+.DS_Store
+Thumbs.db
+ 
+# Git
+.git
+.gitattributes
+.gitignore
+.github
+.husky
+.commitlintrc.ts
+ 
+# Docker-related
+Dockerfile*
+.dockerignore
+docker-compose*
+ 
+# Environment / secrets
+.env
+.env.*          # e.g., .env.local, .env.production
+.env*  
+*.pem
+*.key
+*.crt
+default-env.js
+ 
+# Editor/IDE files
+.devcontainer
+.vscode
+.idea
+ 
+# Misc
+*.swp
+CHANGELOG.md
+README.md
+cliff.tom
+*.sqlite
+ 
+# Prettier / Linter
+.prettierignore
+.prettierrc.json
+eslint.config.mjs
+ 
+# SAP Capire
+.cdsprettier.json
+ 
