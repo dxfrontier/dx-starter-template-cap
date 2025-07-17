@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bookshop-ams-policies
+  namespace: default
+  labels:
+    app: bookshop
+    component: ams-policies
+data:
+  package.json: |
+    {
+      "name": "ams-dcl-content-deployer",
+      "version": "3.0.0",
+      "dependencies": {
+        "@sap/ams": "^3"
+      },
+      "engines": {
+        "node": ">=18"
+      },
+      "scripts": {
+        "start": "npx --package=@sap/ams deploy-dcl"
+      }
+    }
+  basePolicies.dcl: |
+    // ---------------------------------HEADER_START-----------------------------------------------
+    // Generated from a CAP model by the SAP AMS Plugin (@sap/ams) 3.2.0
+    // hash of generated content: 91ac650b4a5038a6506d8c89ed0d2865de87434924cafbba30a26bdd54d9b873
+    // ----------------------------------HEADER_END------------------------------------------------
+
+    POLICY "admin" {
+    	ASSIGN ROLE "admin";
+    }
+  schema.dcl: |
+    // ---------------------------------HEADER_START-----------------------------------------------
+    // Generated from a CAP model by the SAP AMS Plugin (@sap/ams) 2.4.0
+    // hash of generated content: cccdab609c11944ce4d8d8769ab7c0f09c149fd8aeb9252a58786c724a892c19
+    // ----------------------------------HEADER_END------------------------------------------------
+
+    SCHEMA {
+    	AuthorCountry: String,
+    	AuthorName: String,
+    	BookGenre: String,
+    	PriceRange: Number
+    }
