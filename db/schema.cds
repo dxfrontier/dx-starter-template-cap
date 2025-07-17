@@ -29,3 +29,14 @@ entity Genres : sap.common.CodeList {
   parent   : Association to Genres;
   children : Composition of many Genres on children.parent = $self;
 }
+
+// AMS Attribute Annotations for Authorization
+annotate Books with @ams.attributes: {
+  BookGenre: (genre.name),
+  AuthorName: (author.name),
+  PriceRange: (price)
+};
+
+annotate Authors with @ams.attributes: {
+  AuthorCountry: (placeOfBirth)
+};
