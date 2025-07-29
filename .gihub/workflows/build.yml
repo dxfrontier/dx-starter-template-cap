@@ -2,7 +2,7 @@ name: Build Container Image
 
 on:
   repository_dispatch:
-    types: [custom_event]
+    types: container_build
 
 jobs:
   example:
