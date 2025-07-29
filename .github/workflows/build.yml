@@ -9,4 +9,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run a script
-        run: echo "Event triggered with key: ${{ github.event.client_payload.tag }}"
+        run: echo "Event triggered with key:${{ github.event.client_payload.tag }}"
