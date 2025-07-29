@@ -44,5 +44,5 @@ jobs:
           docker push ghcr.io/dxfrontier/$IMAGE_NAME:latest
           echo "✅ Image pushed."
         env:
-          IMAGE_NAME: ${{ github.event.client_payload.identifier }}
+          IMAGE_NAME: ${{ github.event.client_payload.image }}
 
