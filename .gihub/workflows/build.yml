@@ -1,0 +1,79 @@
+name: Build Container Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag'
+        required: true
+        default: 'latest'
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - demo
+          - prod
+        default: 'dev'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: 🐳 Build and Push Image
+    runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: 20
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 🔒 Registry Login
+        run: |
+          echo "🔐 Authenticating with container registry..."
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io \
+            -u "dx-starter" \
+            --password-stdin
+          echo "✅ Registry login successful"
+
+      - name: 🐳 Build and Push Image
+        run: |
+          echo "🏗️ Building Docker image for ${{ github.event.inputs.environment }}..."
+          
+          # Build image with multiple tags
+          IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}"
+          IMAGE_TAG="${IMAGE_BASE}:${{ github.event.inputs.tag }}"
+          IMAGE_ENV="${IMAGE_BASE}:${{ github.event.inputs.environment }}"
+          IMAGE_LATEST="${IMAGE_BASE}:latest"
+          
+          # Determine Dockerfile based on environment
+          DOCKERFILE="Dockerfile"
+          if [ "${{ github.event.inputs.environment }}" != "prod" ]; then
+            DOCKERFILE="Dockerfile.${{ github.event.inputs.environment }}"
+          fi
+          
+          # Build and tag image
+          docker build -t $IMAGE_TAG -t $IMAGE_ENV -t $IMAGE_LATEST -f $DOCKERFILE .
+          
+          # Push all tags
+          docker push $IMAGE_TAG
+          docker push $IMAGE_ENV  
+          docker push $IMAGE_LATEST
+          
+          echo "📦 Image successfully built and pushed:"
+          echo "  - $IMAGE_TAG"
+          echo "  - $IMAGE_ENV"
+          echo "  - $IMAGE_LATEST"
+
+      - name: 🎉 Build Complete
+        run: echo "✅ Successfully built and pushed image for ${{ github.event.inputs.environment }} environment"
