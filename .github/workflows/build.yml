@@ -1,0 +1,12 @@
+name: Build Container Image
+
+on:
+  repository_dispatch:
+    types: [container_build]
+
+jobs:
+  example:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run a script
+        run: echo "Event triggered with key: ${{ github.event.client_payload.tag }}"
