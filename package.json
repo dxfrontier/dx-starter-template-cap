@@ -28,7 +28,7 @@
   "cds": {
     "requires": {
       "auth": {
-        "kind": "ias"
+        "kind": "dummy"
       }
     },
     "build": {
