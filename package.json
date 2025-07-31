@@ -24,23 +24,5 @@
   "sapux": [
     "app/admin-books",
     "app/browse"
-  ],
-  "cds": {
-    "requires": {
-      "auth": {
-        "kind": "dummy"
-      }
-    },
-    "build": {
-      "tasks": [
-        {
-          "for": "ams",
-          "src": "srv",
-          "options": {
-            "model": ["srv", "app"]
-          }
-        }
-      ]
-    }
-  }
+  ]
 }
