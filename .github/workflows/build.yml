@@ -27,12 +27,10 @@ jobs:
       - name: 🔒 Registry Login
         run: |
           echo "🔐 Authenticating with container registry..."
-          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io \
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
             -u "dx.local" \
             --password-stdin
           echo "✅ Registry login successful"
-        env:
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
 
       - name: 🐳 Build and Push
         run: |
