@@ -71,20 +71,40 @@ jobs:
             ATTEMPT=$((ATTEMPT + 1))
             echo ""
             echo "🔄 Attempt $ATTEMPT/$MAX_HEALTH_CHECK_ATTEMPTS..."
-            
-            # Try to reach the app URL
-            # -s: silent, -f: fail on HTTP errors, -L: follow redirects, -o: output to /dev/null
+
+            # Try to reach the app URL and get HTTP status code
+            # -s: silent, -L: follow redirects, -w: write out format, -o: output to /dev/null
             # --connect-timeout: timeout for connection, --max-time: maximum time for the entire operation
-            if curl -s -f -L -o /dev/null --connect-timeout 10 --max-time 30 "$APP_URL"; then
-              echo "✅ SUCCESS! Application is responding at $APP_URL"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --connect-timeout 10 --max-time 30 "$APP_URL" 2>/dev/null || echo "000")
+
+            # Check if we got a successful response (2xx or 3xx)
+            if [[ "$HTTP_CODE" =~ ^[23][0-9][0-9]$ ]]; then
+              echo "✅ SUCCESS! Application is responding at $APP_URL (HTTP $HTTP_CODE)"
               echo "🎉 Pod has successfully spawned and is healthy"
               SUCCESS=true
               break
             else
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --connect-timeout 10 --max-time 30 "$APP_URL" || echo "000")
-              echo "⏳ App not ready yet (HTTP $HTTP_CODE). Waiting $HEALTH_CHECK_INTERVAL seconds..."
-              
+              # Provide specific messages for common error codes
+              case "$HTTP_CODE" in
+                "000")
+                  echo "⏳ Cannot connect to app (connection failed). Pod may not be ready yet..."
+                  ;;
+                "502")
+                  echo "⏳ Bad Gateway (HTTP 502). Kyma routing is up but pod not ready..."
+                  ;;
+                "503")
+                  echo "⏳ Service Unavailable (HTTP 503). No healthy upstream - pod not ready yet..."
+                  ;;
+                "504")
+                  echo "⏳ Gateway Timeout (HTTP 504). Pod may be starting..."
+                  ;;
+                *)
+                  echo "⏳ App not ready yet (HTTP $HTTP_CODE). Waiting..."
+                  ;;
+              esac
+
               if [ $ATTEMPT -lt $MAX_HEALTH_CHECK_ATTEMPTS ]; then
+                echo "   Waiting $HEALTH_CHECK_INTERVAL seconds before next attempt..."
                 sleep $HEALTH_CHECK_INTERVAL
               fi
             fi
