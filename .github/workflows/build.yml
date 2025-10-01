@@ -60,7 +60,10 @@ jobs:
             exit 0
           fi
 
-          echo "🔍 Starting health check for: $APP_URL"
+          # Construct health endpoint URL
+          HEALTH_URL="${APP_URL}/health"
+
+          echo "🔍 Starting health check for: $HEALTH_URL"
           echo "⏱️ Will attempt $MAX_HEALTH_CHECK_ATTEMPTS times with $HEALTH_CHECK_INTERVAL second intervals"
           echo "⏳ Maximum wait time: $(($MAX_HEALTH_CHECK_ATTEMPTS * $HEALTH_CHECK_INTERVAL)) seconds (~$(($MAX_HEALTH_CHECK_ATTEMPTS * $HEALTH_CHECK_INTERVAL / 60)) minutes)"
 
@@ -72,36 +75,30 @@ jobs:
             echo ""
             echo "🔄 Attempt $ATTEMPT/$MAX_HEALTH_CHECK_ATTEMPTS..."
 
-            # Try to reach the app URL and get HTTP status code
-            # -s: silent, -L: follow redirects, -w: write out format, -o: output to /dev/null
-            # --connect-timeout: timeout for connection, --max-time: maximum time for the entire operation
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --connect-timeout 10 --max-time 30 "$APP_URL" 2>/dev/null || echo "000")
+            # Call the health endpoint and capture both status code and response body
+            RESPONSE=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 30 "$HEALTH_URL" 2>/dev/null || echo -e "\n000")
 
-            # Check if we got a successful response (2xx or 3xx)
-            if [[ "$HTTP_CODE" =~ ^[23][0-9][0-9]$ ]]; then
-              echo "✅ SUCCESS! Application is responding at $APP_URL (HTTP $HTTP_CODE)"
-              echo "🎉 Pod has successfully spawned and is healthy"
+            # Split response into body and status code
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+
+            echo "📊 HTTP Status: $HTTP_CODE"
+            echo "📄 Response: $BODY"
+
+            # Check if we got HTTP 200 and the response contains "status":"UP"
+            if [ "$HTTP_CODE" = "200" ] && echo "$BODY" | grep -q '"status":"UP"'; then
+              echo "✅ SUCCESS! Application is healthy"
+              echo "🎉 Pod has successfully spawned and is responding correctly"
               SUCCESS=true
               break
             else
-              # Provide specific messages for common error codes
-              case "$HTTP_CODE" in
-                "000")
-                  echo "⏳ Cannot connect to app (connection failed). Pod may not be ready yet..."
-                  ;;
-                "502")
-                  echo "⏳ Bad Gateway (HTTP 502). Kyma routing is up but pod not ready..."
-                  ;;
-                "503")
-                  echo "⏳ Service Unavailable (HTTP 503). No healthy upstream - pod not ready yet..."
-                  ;;
-                "504")
-                  echo "⏳ Gateway Timeout (HTTP 504). Pod may be starting..."
-                  ;;
-                *)
-                  echo "⏳ App not ready yet (HTTP $HTTP_CODE). Waiting..."
-                  ;;
-              esac
+              if [ "$HTTP_CODE" = "000" ]; then
+                echo "⏳ Cannot connect to health endpoint. Pod may not be ready yet..."
+              elif [ "$HTTP_CODE" != "200" ]; then
+                echo "⏳ Health endpoint returned HTTP $HTTP_CODE. Waiting for pod to be ready..."
+              else
+                echo "⏳ Health endpoint returned HTTP 200 but status is not UP. Response: $BODY"
+              fi
 
               if [ $ATTEMPT -lt $MAX_HEALTH_CHECK_ATTEMPTS ]; then
                 echo "   Waiting $HEALTH_CHECK_INTERVAL seconds before next attempt..."
@@ -114,12 +111,12 @@ jobs:
             echo ""
             echo "❌ FAILURE: Application did not become healthy within the timeout period"
             echo "🕐 Waited for $(($MAX_HEALTH_CHECK_ATTEMPTS * $HEALTH_CHECK_INTERVAL)) seconds"
-            echo "🔗 URL: $APP_URL"
+            echo "🔗 Health URL: $HEALTH_URL"
             echo ""
             echo "Possible reasons:"
-            echo "  - Kyma pod failed to pull the image"
-            echo "  - Application failed to start"
-            echo "  - Health check endpoint is not responding"
+            echo "  - Pod failed to start or pull the image"
+            echo "  - Application failed to start properly"
+            echo "  - Health endpoint is not responding with {\"status\":\"UP\"}"
             echo "  - Network connectivity issues"
             exit 1
           fi
