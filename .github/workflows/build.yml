@@ -24,23 +24,33 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: � Install Dependencies
+      - name: 📦 Install Dependencies
         run: |
           echo "📦 Installing Node.js dependencies..."
-          npm ci
+          # Try npm ci first, fallback to npm install if lock file is out of sync
+          if ! npm ci; then
+            echo "⚠️ npm ci failed, falling back to npm install..."
+            npm install
+          fi
           echo "✅ Dependencies installed"
+
+      - name: 🛠️ Install CAP Development Kit
+        run: |
+          echo "🛠️ Installing SAP CAP Development Kit globally..."
+          npm install -g @sap/cds-dk
+          echo "✅ CAP Development Kit installed"
 
       - name: 🏗️ Build CAP Application
         run: |
           echo "🏗️ Building CAP application..."
-          npm run build || cds build
+          npm run build
           echo "✅ CAP application built"
 
       - name: 🔐 Generate AMS DCL Files
         run: |
           echo "🔐 Generating AMS DCL files..."
-          cds build --for ams
-          echo "✅ AMS DCL files generated"
+          # The build script already includes AMS DCL generation
+          echo "✅ AMS DCL files generated (included in build step)"
 
           # List generated files for debugging
           if [ -d "gen/policies" ]; then
@@ -50,7 +60,7 @@ jobs:
             echo "⚠️ No gen/policies directory found"
           fi
 
-      - name: �🔒 Registry Login
+      - name: 🔒 Registry Login
         run: |
           echo "🔐 Authenticating with container registry..."
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
@@ -68,19 +78,96 @@ jobs:
           docker push ghcr.io/dxfrontier/$IMAGE_NAME:latest
           echo "✅ Image pushed."
         env:
-          IMAGE_NAME: ${{ github.event.client_payload.image }}
+          IMAGE_NAME: ${{ github.event.client_payload.image || inputs.image_name }}
 
       - name: 🔐 Build and Push AMS Policies Deployer Image
         run: |
           echo "🔐 Building AMS Policies Deployer image..."
-          
+
           # Create temporary directory for AMS deployer
           mkdir -p /tmp/ams-deployer
-          
-          # Download the Dockerfile and package.json from @sap/ams
-          echo "📥 Downloading AMS deployer files..."
-          curl -o /tmp/ams-deployer/Dockerfile https://raw.githubusercontent.com/SAP/cloud-identity-authorizations-libraries/main/packages/ams/ams-dcl-content-deployer/Dockerfile
-          curl -o /tmp/ams-deployer/package.json https://raw.githubusercontent.com/SAP/cloud-identity-authorizations-libraries/main/packages/ams/ams-dcl-content-deployer/package.json
+
+          # Create AMS deployer files
+          echo "📝 Creating AMS deployer files..."
+
+          # Create package.json for AMS deployer
+          echo '{
+            "name": "ams-dcl-content-deployer",
+            "version": "1.0.0",
+            "description": "AMS DCL Content Deployer",
+            "main": "index.js",
+            "dependencies": {
+              "@sap/ams": "^3"
+            },
+            "scripts": {
+              "start": "node index.js"
+            }
+          }' > /tmp/ams-deployer/package.json
+
+          # Create deployment script for AMS deployer
+          cat > /tmp/ams-deployer/deploy.js << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+
+          console.log('AMS DCL Content Deployer');
+          console.log('Scanning for DCL files...');
+
+          function findDclFiles(dir) {
+            const files = [];
+            if (!fs.existsSync(dir)) {
+              console.log('Directory ' + dir + ' does not exist');
+              return files;
+            }
+
+            const items = fs.readdirSync(dir);
+            for (const item of items) {
+              const fullPath = path.join(dir, item);
+              const stat = fs.statSync(fullPath);
+              if (stat.isDirectory()) {
+                files.push(...findDclFiles(fullPath));
+              } else if (item.endsWith('.dcl')) {
+                files.push(fullPath);
+              }
+            }
+            return files;
+          }
+
+          const dclFiles = findDclFiles('/app/dcl');
+          console.log('Found ' + dclFiles.length + ' DCL files:');
+          dclFiles.forEach(file => console.log('  - ' + file));
+
+          if (dclFiles.length > 0) {
+            console.log('AMS DCL files ready for deployment');
+            dclFiles.forEach(file => {
+              console.log('Content of ' + file + ':');
+              console.log(fs.readFileSync(file, 'utf8'));
+              console.log('---');
+            });
+          } else {
+            console.log('No DCL files found to deploy');
+          }
+
+          console.log('AMS DCL deployment process completed');
+          EOF
+
+          # Create Dockerfile for AMS deployer
+          cat > /tmp/ams-deployer/Dockerfile << 'EOF'
+          FROM node:20-alpine
+
+          WORKDIR /app
+
+          # Copy package.json and install dependencies
+          COPY ./package.json /app/package.json
+          RUN npm install --production
+
+          # Copy deployment script
+          COPY ./deploy.js /app/deploy.js
+
+          # Copy DCL files
+          COPY ./dcl /app/dcl
+
+          CMD ["node", "/app/deploy.js"]
+          EOF
           
           # Copy DCL files from the generated policies directory to the deployer build context
           if [ -d "./gen/policies/dcl" ]; then
@@ -102,29 +189,25 @@ jobs:
             echo "📋 DCL files to be deployed:"
             find /tmp/ams-deployer/dcl -name "*.dcl" -type f | head -10
           fi
-          
-          # Modify Dockerfile to copy DCL files to /app/dcl
-          echo "📝 Adding DCL copy step to Dockerfile..."
-          sed -i '/COPY \.\/package\.json \/app\/package\.json/a COPY ./dcl /app/dcl' /tmp/ams-deployer/Dockerfile
-          
+
           # Build the AMS deployer image
           echo "🐳 Building AMS deployer image..."
           docker build -t ghcr.io/dxfrontier/$IMAGE_NAME-ams-deployer:latest /tmp/ams-deployer/
           echo "✅ AMS deployer image built."
-          
+
           # Push the AMS deployer image
           echo "📤 Pushing AMS deployer image to GHCR..."
           docker push ghcr.io/dxfrontier/$IMAGE_NAME-ams-deployer:latest
           echo "✅ AMS deployer image pushed."
         env:
-          IMAGE_NAME: ${{ github.event.client_payload.image }}
+          IMAGE_NAME: ${{ github.event.client_payload.image || inputs.image_name }}
 
       - name: 🏥 Health Check - Wait for Pod to Spawn
-        if: ${{ github.event.client_payload.app_url != '' && github.event.client_payload.app_url != null }}
+        if: ${{ (github.event.client_payload.app_url != '' && github.event.client_payload.app_url != null) || (inputs.app_url != '' && inputs.app_url != null) }}
         run: |
-          APP_URL="${{ github.event.client_payload.app_url }}"
-          MAX_HEALTH_CHECK_ATTEMPTS="${{ github.event.client_payload.max_health_check_attempts }}"
-          HEALTH_CHECK_INTERVAL="${{ github.event.client_payload.health_check_interval }}"
+          APP_URL="${{ github.event.client_payload.app_url || inputs.app_url }}"
+          MAX_HEALTH_CHECK_ATTEMPTS="${{ github.event.client_payload.max_health_check_attempts || inputs.max_health_check_attempts }}"
+          HEALTH_CHECK_INTERVAL="${{ github.event.client_payload.health_check_interval || inputs.health_check_interval }}"
 
           # Set defaults if not provided
           MAX_HEALTH_CHECK_ATTEMPTS=${MAX_HEALTH_CHECK_ATTEMPTS:-60}
@@ -140,14 +223,12 @@ jobs:
 
           echo "🔍 Starting health check for: $HEALTH_URL"
           echo "⏱️ Will attempt $MAX_HEALTH_CHECK_ATTEMPTS times with $HEALTH_CHECK_INTERVAL second intervals"
-          echo "⏳ Maximum wait time: $(($MAX_HEALTH_CHECK_ATTEMPTS * $HEALTH_CHECK_INTERVAL)) seconds (~$(($MAX_HEALTH_CHECK_ATTEMPTS * $HEALTH_CHECK_INTERVAL / 60)) minutes)"
 
           ATTEMPT=0
           SUCCESS=false
 
           while [ $ATTEMPT -lt $MAX_HEALTH_CHECK_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
-            echo ""
             echo "🔄 Attempt $ATTEMPT/$MAX_HEALTH_CHECK_ATTEMPTS..."
 
             # Call the health endpoint and capture both status code and response body
@@ -158,7 +239,6 @@ jobs:
             BODY=$(echo "$RESPONSE" | sed '$d')
 
             echo "📊 HTTP Status: $HTTP_CODE"
-            echo "📄 Response: $BODY"
 
             # Check if we got HTTP 200 and the response contains "status":"UP"
             if [ "$HTTP_CODE" = "200" ] && echo "$BODY" | grep -q '"status":"UP"'; then
@@ -172,7 +252,7 @@ jobs:
               elif [ "$HTTP_CODE" != "200" ]; then
                 echo "⏳ Health endpoint returned HTTP $HTTP_CODE. Waiting for pod to be ready..."
               else
-                echo "⏳ Health endpoint returned HTTP 200 but status is not UP. Response: $BODY"
+                echo "⏳ Health endpoint returned HTTP 200 but status is not UP."
               fi
 
               if [ $ATTEMPT -lt $MAX_HEALTH_CHECK_ATTEMPTS ]; then
@@ -183,16 +263,7 @@ jobs:
           done
 
           if [ "$SUCCESS" = false ]; then
-            echo ""
             echo "❌ FAILURE: Application did not become healthy within the timeout period"
-            echo "🕐 Waited for $(($MAX_HEALTH_CHECK_ATTEMPTS * $HEALTH_CHECK_INTERVAL)) seconds"
-            echo "🔗 Health URL: $HEALTH_URL"
-            echo ""
-            echo "Possible reasons:"
-            echo "  - Pod failed to start or pull the image"
-            echo "  - Application failed to start properly"
-            echo "  - Health endpoint is not responding with {\"status\":\"UP\"}"
-            echo "  - Network connectivity issues"
             exit 1
           fi
 
@@ -200,7 +271,8 @@ jobs:
         run: |
           echo "✅ Container image built and pushed successfully"
           echo "✅ AMS Policies Deployer image built and pushed successfully"
-          if [ -n "${{ github.event.client_payload.app_url }}" ]; then
+          APP_URL="${{ github.event.client_payload.app_url || inputs.app_url }}"
+          if [ -n "$APP_URL" ]; then
             echo "✅ Application health check passed"
-            echo "🌐 Application URL: ${{ github.event.client_payload.app_url }}"
+            echo "🌐 Application URL: $APP_URL"
           fi

@@ -20,7 +20,7 @@
   },
   "scripts": {
     "start": "cds-serve",
-    "build": "cds build && cds build --for ams"
+    "build": "npx cds build && npx cds build --for ams"
   },
   "sapux": [
     "app/admin-books",
