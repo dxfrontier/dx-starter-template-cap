@@ -101,6 +101,15 @@ jobs:
             },
             "scripts": {
               "start": "npx --package=@sap/ams deploy-dcl -d /app/dcl"
+            },
+            "cds": {
+              "requires": {
+                "auth": {
+                  "ams": {
+                    "dclGenerationPackage": "$IMAGE_NAME"
+                  }
+                }
+              }
             }
           }' > /tmp/ams-deployer/package.json
 
