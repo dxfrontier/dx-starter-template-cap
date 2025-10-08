@@ -100,55 +100,9 @@ jobs:
               "@sap/ams": "^3"
             },
             "scripts": {
-              "start": "node index.js"
+              "start": "npx --package=@sap/ams deploy-dcl -d /app/dcl"
             }
           }' > /tmp/ams-deployer/package.json
-
-          # Create deployment script for AMS deployer
-          cat > /tmp/ams-deployer/deploy.js << 'EOF'
-          const fs = require('fs');
-          const path = require('path');
-
-          console.log('AMS DCL Content Deployer');
-          console.log('Scanning for DCL files...');
-
-          function findDclFiles(dir) {
-            const files = [];
-            if (!fs.existsSync(dir)) {
-              console.log('Directory ' + dir + ' does not exist');
-              return files;
-            }
-
-            const items = fs.readdirSync(dir);
-            for (const item of items) {
-              const fullPath = path.join(dir, item);
-              const stat = fs.statSync(fullPath);
-              if (stat.isDirectory()) {
-                files.push(...findDclFiles(fullPath));
-              } else if (item.endsWith('.dcl')) {
-                files.push(fullPath);
-              }
-            }
-            return files;
-          }
-
-          const dclFiles = findDclFiles('/app/dcl');
-          console.log('Found ' + dclFiles.length + ' DCL files:');
-          dclFiles.forEach(file => console.log('  - ' + file));
-
-          if (dclFiles.length > 0) {
-            console.log('AMS DCL files ready for deployment');
-            dclFiles.forEach(file => {
-              console.log('Content of ' + file + ':');
-              console.log(fs.readFileSync(file, 'utf8'));
-              console.log('---');
-            });
-          } else {
-            console.log('No DCL files found to deploy');
-          }
-
-          console.log('AMS DCL deployment process completed');
-          EOF
 
           # Create Dockerfile for AMS deployer
           cat > /tmp/ams-deployer/Dockerfile << 'EOF'
@@ -164,9 +118,6 @@ jobs:
           COPY ./package.json /app/package.json
           RUN npm install --production
 
-          # Copy deployment script
-          COPY ./deploy.js /app/deploy.js
-
           # Copy DCL files
           COPY ./dcl /app/dcl
 
@@ -176,7 +127,7 @@ jobs:
           # Switch to non-root user using numeric UID
           USER 1001
 
-          CMD ["node", "/app/deploy.js"]
+          CMD ["npm", "start"]
           EOF
           
           # Copy DCL files from the generated policies directory to the deployer build context
