@@ -32,7 +32,7 @@ jobs:
             --password-stdin
           echo "✅ Registry login successful"
 
-      - name: 🐳 Build and Push
+      - name: 🐳 Build and Push Application Image
         run: |
           echo "🐳 Building Docker image for '$IMAGE_NAME' with tag 'latest' ..."
           docker build -t ghcr.io/dxfrontier/$IMAGE_NAME:latest ./
@@ -41,6 +41,43 @@ jobs:
           echo "📤 Pushing image to GHCR..."
           docker push ghcr.io/dxfrontier/$IMAGE_NAME:latest
           echo "✅ Image pushed."
+        env:
+          IMAGE_NAME: ${{ github.event.client_payload.image }}
+
+      - name: 🔐 Build and Push AMS Policies Deployer Image
+        run: |
+          echo "🔐 Building AMS Policies Deployer image..."
+          
+          # Create temporary directory for AMS deployer
+          mkdir -p /tmp/ams-deployer
+          
+          # Download the Dockerfile and package.json from @sap/ams
+          echo "📥 Downloading AMS deployer files..."
+          curl -o /tmp/ams-deployer/Dockerfile https://raw.githubusercontent.com/SAP/cloud-identity-authorizations-libraries/main/packages/ams/ams-dcl-content-deployer/Dockerfile
+          curl -o /tmp/ams-deployer/package.json https://raw.githubusercontent.com/SAP/cloud-identity-authorizations-libraries/main/packages/ams/ams-dcl-content-deployer/package.json
+          
+          # Copy DCL files from the repository to the deployer build context
+          if [ -d "./dcl" ]; then
+            echo "📋 Copying DCL files to build context..."
+            cp -r ./dcl /tmp/ams-deployer/dcl
+          else
+            echo "⚠️ No dcl directory found, creating empty one"
+            mkdir -p /tmp/ams-deployer/dcl
+          fi
+          
+          # Modify Dockerfile to copy DCL files to /app/dcl
+          echo "📝 Adding DCL copy step to Dockerfile..."
+          sed -i '/COPY \.\/package\.json \/app\/package\.json/a COPY ./dcl /app/dcl' /tmp/ams-deployer/Dockerfile
+          
+          # Build the AMS deployer image
+          echo "🐳 Building AMS deployer image..."
+          docker build -t ghcr.io/dxfrontier/$IMAGE_NAME-ams-deployer:latest /tmp/ams-deployer/
+          echo "✅ AMS deployer image built."
+          
+          # Push the AMS deployer image
+          echo "📤 Pushing AMS deployer image to GHCR..."
+          docker push ghcr.io/dxfrontier/$IMAGE_NAME-ams-deployer:latest
+          echo "✅ AMS deployer image pushed."
         env:
           IMAGE_NAME: ${{ github.event.client_payload.image }}
 
@@ -124,6 +161,7 @@ jobs:
       - name: 🎉 Deployment Complete
         run: |
           echo "✅ Container image built and pushed successfully"
+          echo "✅ AMS Policies Deployer image built and pushed successfully"
           if [ -n "${{ github.event.client_payload.app_url }}" ]; then
             echo "✅ Application health check passed"
             echo "🌐 Application URL: ${{ github.event.client_payload.app_url }}"
