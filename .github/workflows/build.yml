@@ -154,9 +154,9 @@ jobs:
           cat > /tmp/ams-deployer/Dockerfile << 'EOF'
           FROM node:20-alpine
 
-          # Create a non-root user
+          # Create a non-root user with specific UID/GID
           RUN addgroup -g 1001 -S nodejs && \
-              adduser -S nodejs -u 1001
+              adduser -S nodejs -u 1001 -G nodejs
 
           WORKDIR /app
 
@@ -171,10 +171,10 @@ jobs:
           COPY ./dcl /app/dcl
 
           # Change ownership of the app directory to the nodejs user
-          RUN chown -R nodejs:nodejs /app
+          RUN chown -R 1001:1001 /app
 
-          # Switch to non-root user
-          USER nodejs
+          # Switch to non-root user using numeric UID
+          USER 1001
 
           CMD ["node", "/app/deploy.js"]
           EOF
