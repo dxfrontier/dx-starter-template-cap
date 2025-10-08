@@ -24,5 +24,12 @@
   "sapux": [
     "app/admin-books",
     "app/browse"
-  ]
+  ],
+  "cds": {
+    "requires": {
+      "auth": {
+        "kind": "ias"
+      }
+    }
+  }
 }
