@@ -24,7 +24,33 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: 🔒 Registry Login
+      - name: � Install Dependencies
+        run: |
+          echo "📦 Installing Node.js dependencies..."
+          npm ci
+          echo "✅ Dependencies installed"
+
+      - name: 🏗️ Build CAP Application
+        run: |
+          echo "🏗️ Building CAP application..."
+          npm run build || cds build
+          echo "✅ CAP application built"
+
+      - name: 🔐 Generate AMS DCL Files
+        run: |
+          echo "🔐 Generating AMS DCL files..."
+          cds build --for ams
+          echo "✅ AMS DCL files generated"
+
+          # List generated files for debugging
+          if [ -d "gen/policies" ]; then
+            echo "📋 Generated AMS files:"
+            find gen/policies -name "*.dcl" -type f | head -10
+          else
+            echo "⚠️ No gen/policies directory found"
+          fi
+
+      - name: �🔒 Registry Login
         run: |
           echo "🔐 Authenticating with container registry..."
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
@@ -56,13 +82,25 @@ jobs:
           curl -o /tmp/ams-deployer/Dockerfile https://raw.githubusercontent.com/SAP/cloud-identity-authorizations-libraries/main/packages/ams/ams-dcl-content-deployer/Dockerfile
           curl -o /tmp/ams-deployer/package.json https://raw.githubusercontent.com/SAP/cloud-identity-authorizations-libraries/main/packages/ams/ams-dcl-content-deployer/package.json
           
-          # Copy DCL files from the repository to the deployer build context
-          if [ -d "./dcl" ]; then
-            echo "📋 Copying DCL files to build context..."
-            cp -r ./dcl /tmp/ams-deployer/dcl
+          # Copy DCL files from the generated policies directory to the deployer build context
+          if [ -d "./gen/policies/dcl" ]; then
+            echo "📋 Copying generated DCL files to build context..."
+            cp -r ./gen/policies/dcl /tmp/ams-deployer/dcl
+          elif [ -d "./gen/policies" ]; then
+            echo "📋 Copying generated policies directory to build context..."
+            cp -r ./gen/policies /tmp/ams-deployer/dcl
           else
-            echo "⚠️ No dcl directory found, creating empty one"
+            echo "⚠️ No generated policies found, creating empty dcl directory"
             mkdir -p /tmp/ams-deployer/dcl
+            echo "⚠️ Warning: AMS deployer will have no policies to deploy!"
+          fi
+
+          # List what we're copying for debugging
+          echo "📋 Contents of AMS deployer build context:"
+          ls -la /tmp/ams-deployer/
+          if [ -d "/tmp/ams-deployer/dcl" ]; then
+            echo "📋 DCL files to be deployed:"
+            find /tmp/ams-deployer/dcl -name "*.dcl" -type f | head -10
           fi
           
           # Modify Dockerfile to copy DCL files to /app/dcl

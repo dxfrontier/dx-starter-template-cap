@@ -19,7 +19,8 @@
     "@sap/ams-dev": "^2"
   },
   "scripts": {
-    "start": "cds-serve"
+    "start": "cds-serve",
+    "build": "cds build && cds build --for ams"
   },
   "sapux": [
     "app/admin-books",
