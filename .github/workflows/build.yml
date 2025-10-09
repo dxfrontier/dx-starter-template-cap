@@ -106,12 +106,13 @@ jobs:
               "requires": {
                 "auth": {
                   "ams": {
-                    "dclGenerationPackage": "$IMAGE_NAME"
+                    "dclGenerationPackage": "PLACEHOLDER_IMAGE_NAME"
                   }
                 }
               }
             }
           }' > /tmp/ams-deployer/package.json
+          sed -i "s/PLACEHOLDER_IMAGE_NAME/$IMAGE_NAME/g" /tmp/ams-deployer/package.json
 
           # Create Dockerfile for AMS deployer
           cat > /tmp/ams-deployer/Dockerfile << 'EOF'
