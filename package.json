@@ -29,10 +29,7 @@
   "cds": {
     "requires": {
       "auth": {
-        "kind": "ias",
-         "ams": {
-          "dclGenerationPackage": "app-name"
-        }
+        "kind": "ias"
       }
     }
   }

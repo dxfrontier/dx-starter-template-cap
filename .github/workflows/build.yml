@@ -43,8 +43,12 @@ jobs:
       - name: 🏗️ Build CAP Application
         run: |
           echo "🏗️ Building CAP application..."
+          export CDS_REQUIRES_AUTH_AMS_DCLGENERATIONPACKAGE="$IMAGE_NAME"
+          echo "🔧 Set CDS_REQUIRES_AUTH_AMS_DCLGENERATIONPACKAGE=$IMAGE_NAME"
           npm run build
           echo "✅ CAP application built"
+        env:
+          IMAGE_NAME: ${{ github.event.client_payload.image || inputs.image_name }}
 
       - name: 🔐 Generate AMS DCL Files
         run: |
@@ -101,18 +105,8 @@ jobs:
             },
             "scripts": {
               "start": "npx --package=@sap/ams deploy-dcl -d /app/dcl"
-            },
-            "cds": {
-              "requires": {
-                "auth": {
-                  "ams": {
-                    "dclGenerationPackage": "PLACEHOLDER_IMAGE_NAME"
-                  }
-                }
-              }
             }
           }' > /tmp/ams-deployer/package.json
-          sed -i "s/PLACEHOLDER_IMAGE_NAME/$IMAGE_NAME/g" /tmp/ams-deployer/package.json
 
           # Create Dockerfile for AMS deployer
           cat > /tmp/ams-deployer/Dockerfile << 'EOF'
