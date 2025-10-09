@@ -104,7 +104,7 @@ jobs:
               "@sap/ams": "^3"
             },
             "scripts": {
-              "start": "npx --package=@sap/ams deploy-dcl -d /app/dcl"
+              "start": "npx --package=@sap/ams deploy-dcl -d /app/dcl -n $IMAGE_NAME-ams-deployer"
             }
           }' > /tmp/ams-deployer/package.json
 
