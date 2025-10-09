@@ -95,18 +95,18 @@ jobs:
           echo "📝 Creating AMS deployer files..."
 
           # Create package.json for AMS deployer
-          echo '{
-            "name": "ams-dcl-content-deployer",
-            "version": "1.0.0",
-            "description": "AMS DCL Content Deployer",
-            "main": "index.js",
-            "dependencies": {
-              "@sap/ams": "^3"
+          echo "{
+            \"name\": \"ams-dcl-content-deployer\",
+            \"version\": \"1.0.0\",
+            \"description\": \"AMS DCL Content Deployer\",
+            \"main\": \"index.js\",
+            \"dependencies\": {
+              \"@sap/ams\": \"^3\"
             },
-            "scripts": {
-              "start": "npx --package=@sap/ams deploy-dcl -d /app/dcl -n $IMAGE_NAME-ams-deployer"
+            \"scripts\": {
+              \"start\": \"npx --package=@sap/ams deploy-dcl -d /app/dcl -n $IMAGE_NAME-ams-deployer\"
             }
-          }' > /tmp/ams-deployer/package.json
+          }" > /tmp/ams-deployer/package.json
 
           # Create Dockerfile for AMS deployer
           cat > /tmp/ams-deployer/Dockerfile << 'EOF'
