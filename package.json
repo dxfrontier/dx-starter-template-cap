@@ -1,5 +1,5 @@
 {
-  "name": "bookshop",
+  "name": "app-name",
   "version": "1.0.0",
   "description": "A simple CAP project.",
   "repository": "<Add your repository here>",
@@ -29,7 +29,10 @@
   "cds": {
     "requires": {
       "auth": {
-        "kind": "ias"
+        "kind": "ias",
+         "ams": {
+          "dclGenerationPackage": "app-name"
+        }
       }
     }
   }
