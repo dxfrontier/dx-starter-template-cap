@@ -43,8 +43,9 @@ jobs:
       - name: 🏗️ Build CAP Application
         run: |
           echo "🏗️ Building CAP application..."
-          export CDS_REQUIRES_AUTH_AMS_DCLGENERATIONPACKAGE="$IMAGE_NAME"
-          echo "🔧 Set CDS_REQUIRES_AUTH_AMS_DCLGENERATIONPACKAGE=$IMAGE_NAME"
+          # We set package name to default "cap" otherwise we got conflicts using names with "-"
+          # export CDS_REQUIRES_AUTH_AMS_DCLGENERATIONPACKAGE="$IMAGE_NAME"
+          # echo "🔧 Set CDS_REQUIRES_AUTH_AMS_DCLGENERATIONPACKAGE=$IMAGE_NAME"
           npm run build
           echo "✅ CAP application built"
         env:
